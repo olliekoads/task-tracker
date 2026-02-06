@@ -29,6 +29,22 @@ export async function initializeDatabase() {
       CREATE INDEX IF NOT EXISTS idx_tasks_created_by ON tasks(created_by);
       CREATE INDEX IF NOT EXISTS idx_tasks_created_at ON tasks(created_at DESC);
     `);
+    
+    // Add archived columns if they don't exist
+    await client.query(`
+      DO $$ 
+      BEGIN 
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'tasks' AND column_name = 'archived'
+        ) THEN
+          ALTER TABLE tasks ADD COLUMN archived BOOLEAN NOT NULL DEFAULT false;
+          ALTER TABLE tasks ADD COLUMN archived_at TIMESTAMPTZ;
+          CREATE INDEX idx_tasks_archived ON tasks(archived);
+        END IF;
+      END $$;
+    `);
+    
     console.log('✅ Database initialized');
   } finally {
     client.release();

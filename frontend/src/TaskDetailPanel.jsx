@@ -114,17 +114,29 @@ function TaskDetailPanel({ task, onClose, onUpdate, onDelete }) {
         </div>
 
         <div className="panel-footer">
-          <button 
-            onClick={() => {
-              if (confirm('Are you sure you want to delete this task?')) {
-                onDelete(task.id);
+          {task.archived ? (
+            <button 
+              onClick={() => {
+                onUpdate(task.id, { archived: false });
                 onClose();
-              }
-            }}
-            className="btn-delete-full"
-          >
-            🗑️ Delete Task
-          </button>
+              }}
+              className="btn-unarchive"
+            >
+              📂 Unarchive Task
+            </button>
+          ) : (
+            <button 
+              onClick={() => {
+                if (confirm('Archive this task? You can view it later in the archived section.')) {
+                  onDelete(task.id);
+                  onClose();
+                }
+              }}
+              className="btn-delete-full"
+            >
+              📦 Archive Task
+            </button>
+          )}
         </div>
       </div>
     </div>

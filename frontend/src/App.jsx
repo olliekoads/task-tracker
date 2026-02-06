@@ -12,6 +12,8 @@ function App() {
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [user, setUser] = useState(JSON.parse(localStorage.getItem('user') || 'null'));
   const [tasks, setTasks] = useState([]);
+  const [archivedTasks, setArchivedTasks] = useState([]);
+  const [showArchived, setShowArchived] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -27,7 +29,7 @@ function App() {
     if (token) {
       fetchTasks();
     }
-  }, [token]);
+  }, [token, showArchived]);
 
   // Auto-refresh tasks every 60 seconds (only when tab is visible)
   useEffect(() => {
@@ -79,10 +81,19 @@ function App() {
         setIsRefreshing(true);
       }
       
+      // Fetch active tasks
       const response = await axios.get(`${API_URL}/api/tasks`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setTasks(response.data);
+      
+      // Fetch archived tasks if showing archived
+      if (showArchived) {
+        const archivedResponse = await axios.get(`${API_URL}/api/tasks?archived=true`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setArchivedTasks(archivedResponse.data);
+      }
       
       if (isBackgroundRefresh) {
         // Show refresh indicator briefly
@@ -171,7 +182,7 @@ function App() {
   };
 
   const deleteTask = async (taskId) => {
-    if (!confirm('Are you sure you want to delete this task?')) return;
+    if (!confirm('Archive this task? You can view it later in the archived section.')) return;
     
     try {
       await axios.delete(`${API_URL}/api/tasks/${taskId}`, {
@@ -179,7 +190,7 @@ function App() {
       });
       fetchTasks();
     } catch (error) {
-      console.error('Error deleting task:', error);
+      console.error('Error archiving task:', error);
     }
   };
 
@@ -214,6 +225,13 @@ function App() {
         <div className="header-right">
           <button onClick={() => setShowForm(!showForm)} className="btn-primary">
             {showForm ? 'Cancel' : '+ New Task'}
+          </button>
+          <button 
+            onClick={() => setShowArchived(!showArchived)} 
+            className="btn-secondary"
+            title={showArchived ? 'Hide archived tasks' : 'Show archived tasks'}
+          >
+            {showArchived ? '📦 Hide Archived' : '📦 Show Archived'}
           </button>
           <span className="user-info">
             {user?.picture && <img src={user.picture} alt={user.name} className="user-avatar" />}
@@ -269,6 +287,26 @@ function App() {
         onTaskDelete={deleteTask}
         onTaskSelect={setSelectedTask}
       />
+
+      {showArchived && archivedTasks.length > 0 && (
+        <div className="archived-section">
+          <h2>📦 Archived Tasks ({archivedTasks.length})</h2>
+          <div className="archived-tasks">
+            {archivedTasks.map(task => (
+              <div key={task.id} className={`archived-card priority-${task.priority}`} onClick={() => setSelectedTask(task)}>
+                <div className="archived-card-header">
+                  <span className={`status-badge status-${task.status}`}>{task.status}</span>
+                  <span className="archived-date">
+                    Archived {new Date(task.archived_at).toLocaleDateString()}
+                  </span>
+                </div>
+                <h4>{task.title}</h4>
+                {task.category && <span className="category-badge">{task.category}</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {selectedTask && (
         <TaskDetailPanel

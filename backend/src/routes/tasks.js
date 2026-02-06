@@ -10,11 +10,27 @@ router.use(requireAuth);
 // GET /api/tasks - List tasks with optional filters
 router.get('/', async (req, res) => {
   try {
-    const { status, priority, category, limit = 100 } = req.query;
+    const { status, priority, category, archived, limit = 100 } = req.query;
+    
+    // Auto-archive tasks that have been in "done" state for 7+ days
+    await pool.query(`
+      UPDATE tasks 
+      SET archived = true, archived_at = NOW() 
+      WHERE status = 'done' 
+        AND archived = false 
+        AND updated_at < NOW() - INTERVAL '7 days'
+    `);
     
     let query = 'SELECT * FROM tasks WHERE 1=1';
     const params = [];
     let paramCount = 1;
+    
+    // Filter archived by default unless explicitly requested
+    if (archived === 'true') {
+      query += ` AND archived = true`;
+    } else {
+      query += ` AND archived = false`;
+    }
     
     if (status) {
       query += ` AND status = $${paramCount++}`;
@@ -88,7 +104,7 @@ router.post('/', async (req, res) => {
 // PATCH /api/tasks/:id - Update task
 router.patch('/:id', async (req, res) => {
   try {
-    const { title, description, status, priority, category, tags, note } = req.body;
+    const { title, description, status, priority, category, tags, note, archived } = req.body;
     const updates = [];
     const params = [];
     let paramCount = 1;
@@ -116,6 +132,15 @@ router.patch('/:id', async (req, res) => {
     if (tags !== undefined) {
       updates.push(`tags = $${paramCount++}`);
       params.push(tags);
+    }
+    if (archived !== undefined) {
+      updates.push(`archived = $${paramCount++}`);
+      params.push(archived);
+      if (archived) {
+        updates.push(`archived_at = NOW()`);
+      } else {
+        updates.push(`archived_at = NULL`);
+      }
     }
     
     updates.push(`updated_at = NOW()`);
@@ -151,19 +176,23 @@ router.patch('/:id', async (req, res) => {
   }
 });
 
-// DELETE /api/tasks/:id - Delete task
+// DELETE /api/tasks/:id - Archive task (soft delete)
 router.delete('/:id', async (req, res) => {
   try {
-    const result = await pool.query('DELETE FROM tasks WHERE id = $1 RETURNING *', [req.params.id]);
+    const result = await pool.query(
+      `UPDATE tasks SET archived = true, archived_at = NOW(), updated_at = NOW() 
+       WHERE id = $1 RETURNING *`, 
+      [req.params.id]
+    );
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Task not found' });
     }
     
-    res.json({ message: 'Task deleted', task: result.rows[0] });
+    res.json({ message: 'Task archived', task: result.rows[0] });
   } catch (error) {
-    console.error('Error deleting task:', error);
-    res.status(500).json({ error: 'Failed to delete task' });
+    console.error('Error archiving task:', error);
+    res.status(500).json({ error: 'Failed to archive task' });
   }
 });
 
