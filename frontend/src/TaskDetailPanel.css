@@ -4,8 +4,11 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
   z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   animation: fadeIn 0.2s ease-out;
 }
 
@@ -15,26 +18,27 @@
 }
 
 .task-detail-panel {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 420px;
-  max-width: 90vw;
   background: white;
-  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.2);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   z-index: 1000;
   display: flex;
   flex-direction: column;
-  animation: slideIn 0.3s ease-out;
+  width: 90%;
+  max-width: 600px;
+  max-height: 85vh;
+  animation: modalIn 0.25s ease-out;
+  position: relative;
 }
 
-@keyframes slideIn {
+@keyframes modalIn {
   from {
-    transform: translateX(100%);
+    opacity: 0;
+    transform: scale(0.95) translateY(-20px);
   }
   to {
-    transform: translateX(0);
+    opacity: 1;
+    transform: scale(1) translateY(0);
   }
 }
 
@@ -46,6 +50,7 @@
   justify-content: space-between;
   gap: 1rem;
   background: #f8f9fa;
+  border-radius: 12px 12px 0 0;
 }
 
 .panel-header h2 {
@@ -201,6 +206,7 @@
   padding: 1.5rem;
   border-top: 2px solid #e9ecef;
   background: #f8f9fa;
+  border-radius: 0 0 12px 12px;
 }
 
 .btn-delete-full {
@@ -224,7 +230,16 @@
 /* Mobile responsiveness */
 @media (max-width: 768px) {
   .task-detail-panel {
-    width: 100vw;
-    max-width: 100vw;
+    width: 95%;
+    max-height: 90vh;
+  }
+  
+  .panel-content {
+    padding: 1rem;
+  }
+  
+  .panel-header,
+  .panel-footer {
+    padding: 1rem;
   }
 }

@@ -33,9 +33,8 @@ function TaskDetailPanel({ task, onClose, onUpdate, onDelete }) {
   };
 
   return (
-    <>
-      <div className="panel-backdrop" onClick={onClose} />
-      <div className="task-detail-panel">
+    <div className="panel-backdrop" onClick={onClose}>
+      <div className="task-detail-panel" onClick={(e) => e.stopPropagation()}>
         <div className="panel-header">
           <h2>{task.title}</h2>
           <button className="btn-close" onClick={onClose} title="Close (Esc)">
@@ -128,7 +127,7 @@ function TaskDetailPanel({ task, onClose, onUpdate, onDelete }) {
           </button>
         </div>
       </div>
-    </>
+    </div>
   );
 }
 
