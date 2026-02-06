@@ -14,6 +14,7 @@ function App() {
   const [tasks, setTasks] = useState([]);
   const [selectedTask, setSelectedTask] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -28,17 +29,38 @@ function App() {
     }
   }, [token]);
 
-  const fetchTasks = async () => {
+  // Auto-refresh tasks every 60 seconds
+  useEffect(() => {
+    if (!token) return;
+
+    const interval = setInterval(() => {
+      fetchTasks(true); // Pass true to indicate background refresh
+    }, 60000); // 60 seconds
+
+    return () => clearInterval(interval);
+  }, [token]);
+
+  const fetchTasks = async (isBackgroundRefresh = false) => {
     try {
+      if (isBackgroundRefresh) {
+        setIsRefreshing(true);
+      }
+      
       const response = await axios.get(`${API_URL}/api/tasks`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setTasks(response.data);
+      
+      if (isBackgroundRefresh) {
+        // Show refresh indicator briefly
+        setTimeout(() => setIsRefreshing(false), 1000);
+      }
     } catch (error) {
       console.error('Error fetching tasks:', error);
       if (error.response?.status === 401) {
         handleLogout();
       }
+      setIsRefreshing(false);
     }
   };
 
@@ -151,7 +173,10 @@ function App() {
       <header>
         <div className="header-left">
           <h1>🦉 Ollie's Tasks</h1>
-          <span className="task-stats">{activeTasks} active · {totalTasks} total</span>
+          <span className="task-stats">
+            {activeTasks} active · {totalTasks} total
+            {isRefreshing && <span className="refresh-indicator"> ↻</span>}
+          </span>
         </div>
         <div className="header-right">
           <button onClick={() => setShowForm(!showForm)} className="btn-primary">
