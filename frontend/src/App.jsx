@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 import axios from 'axios';
 import KanbanBoard from './KanbanBoard';
+import TaskDetailPanel from './TaskDetailPanel';
 import './App.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
@@ -11,6 +12,7 @@ function App() {
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [user, setUser] = useState(JSON.parse(localStorage.getItem('user') || 'null'));
   const [tasks, setTasks] = useState([]);
+  const [selectedTask, setSelectedTask] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
@@ -93,6 +95,23 @@ function App() {
     } catch (error) {
       console.error('Error updating task:', error);
       alert('Failed to move task');
+    }
+  };
+
+  const handleTaskUpdate = async (taskId, updates) => {
+    try {
+      await axios.patch(`${API_URL}/api/tasks/${taskId}`, 
+        updates,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      fetchTasks();
+      // Update selected task if it's the one being updated
+      if (selectedTask && selectedTask.id === taskId) {
+        setSelectedTask({ ...selectedTask, ...updates });
+      }
+    } catch (error) {
+      console.error('Error updating task:', error);
+      alert('Failed to update task');
     }
   };
 
@@ -190,7 +209,17 @@ function App() {
         tasks={tasks}
         onTaskMove={handleTaskMove}
         onTaskDelete={deleteTask}
+        onTaskSelect={setSelectedTask}
       />
+
+      {selectedTask && (
+        <TaskDetailPanel
+          task={selectedTask}
+          onClose={() => setSelectedTask(null)}
+          onUpdate={handleTaskUpdate}
+          onDelete={deleteTask}
+        />
+      )}
     </div>
   );
 }

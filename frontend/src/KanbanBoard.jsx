@@ -8,7 +8,7 @@ const COLUMNS = [
   { id: 'done', title: 'Done', emoji: '✅' }
 ];
 
-function KanbanBoard({ tasks, onTaskMove, onTaskDelete }) {
+function KanbanBoard({ tasks, onTaskMove, onTaskDelete, onTaskSelect }) {
   const tasksByStatus = COLUMNS.reduce((acc, col) => {
     acc[col.id] = tasks.filter(task => task.status === col.id);
     return acc;
@@ -73,13 +73,17 @@ function KanbanBoard({ tasks, onTaskMove, onTaskDelete }) {
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
                             className={`kanban-card priority-${task.priority} ${snapshot.isDragging ? 'dragging' : ''}`}
+                            onDoubleClick={() => onTaskSelect(task)}
                           >
                             <div className="card-header">
                               <div className="card-priority">
                                 {getPriorityEmoji(task.priority)}
                               </div>
                               <button 
-                                onClick={() => onTaskDelete(task.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onTaskDelete(task.id);
+                                }}
                                 className="btn-delete"
                                 title="Delete task"
                               >
@@ -89,25 +93,20 @@ function KanbanBoard({ tasks, onTaskMove, onTaskDelete }) {
                             
                             <h4 className="card-title">{task.title}</h4>
                             
-                            {task.description && (
-                              <p className="card-description">{task.description}</p>
-                            )}
-                            
                             <div className="card-meta">
                               {task.category && (
                                 <span className="category-badge">{task.category}</span>
                               )}
                               {task.tags && task.tags.length > 0 && (
                                 <div className="tags">
-                                  {task.tags.map(tag => (
+                                  {task.tags.slice(0, 2).map(tag => (
                                     <span key={tag} className="tag">{tag}</span>
                                   ))}
+                                  {task.tags.length > 2 && (
+                                    <span className="tag tag-more">+{task.tags.length - 2}</span>
+                                  )}
                                 </div>
                               )}
-                            </div>
-                            
-                            <div className="card-footer">
-                              <small>{new Date(task.created_at).toLocaleDateString()}</small>
                             </div>
                           </div>
                         )}
