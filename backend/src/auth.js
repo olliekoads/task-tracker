@@ -26,6 +26,22 @@ export async function verifyToken(token) {
 }
 
 export function requireAuth(req, res, next) {
+  // Check for API Key first (for service account / bot access)
+  const apiKey = req.headers['x-api-key'];
+  if (apiKey) {
+    if (apiKey === process.env.API_KEY) {
+      req.user = {
+        email: 'ollie@famylin.com',
+        name: 'Ollie (Service Account)',
+        picture: null
+      };
+      return next();
+    } else {
+      return res.status(401).json({ error: 'Invalid API key' });
+    }
+  }
+  
+  // Otherwise, check for OAuth token
   const authHeader = req.headers.authorization;
   
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
