@@ -29,15 +29,48 @@ function App() {
     }
   }, [token]);
 
-  // Auto-refresh tasks every 60 seconds
+  // Auto-refresh tasks every 60 seconds (only when tab is visible)
   useEffect(() => {
     if (!token) return;
 
-    const interval = setInterval(() => {
-      fetchTasks(true); // Pass true to indicate background refresh
-    }, 60000); // 60 seconds
+    let interval = null;
 
-    return () => clearInterval(interval);
+    const startPolling = () => {
+      interval = setInterval(() => {
+        fetchTasks(true); // Pass true to indicate background refresh
+      }, 60000); // 60 seconds
+    };
+
+    const stopPolling = () => {
+      if (interval) {
+        clearInterval(interval);
+        interval = null;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // Tab is hidden - stop polling
+        stopPolling();
+      } else {
+        // Tab is visible - fetch immediately and resume polling
+        fetchTasks(true);
+        startPolling();
+      }
+    };
+
+    // Start polling initially if tab is visible
+    if (!document.hidden) {
+      startPolling();
+    }
+
+    // Listen for visibility changes
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      stopPolling();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [token]);
 
   const fetchTasks = async (isBackgroundRefresh = false) => {
