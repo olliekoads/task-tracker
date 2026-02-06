@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 import axios from 'axios';
+import KanbanBoard from './KanbanBoard';
 import './App.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
@@ -10,7 +11,6 @@ function App() {
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [user, setUser] = useState(JSON.parse(localStorage.getItem('user') || 'null'));
   const [tasks, setTasks] = useState([]);
-  const [filter, setFilter] = useState('all');
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
@@ -24,14 +24,12 @@ function App() {
     if (token) {
       fetchTasks();
     }
-  }, [token, filter]);
+  }, [token]);
 
   const fetchTasks = async () => {
     try {
-      const params = filter !== 'all' ? { status: filter } : {};
       const response = await axios.get(`${API_URL}/api/tasks`, {
-        headers: { Authorization: `Bearer ${token}` },
-        params
+        headers: { Authorization: `Bearer ${token}` }
       });
       setTasks(response.data);
     } catch (error) {
@@ -85,7 +83,7 @@ function App() {
     }
   };
 
-  const updateTaskStatus = async (taskId, newStatus) => {
+  const handleTaskMove = async (taskId, newStatus) => {
     try {
       await axios.patch(`${API_URL}/api/tasks/${taskId}`, 
         { status: newStatus },
@@ -94,6 +92,7 @@ function App() {
       fetchTasks();
     } catch (error) {
       console.error('Error updating task:', error);
+      alert('Failed to move task');
     }
   };
 
@@ -125,43 +124,27 @@ function App() {
     );
   }
 
-  const statusCounts = {
-    all: tasks.length,
-    todo: tasks.filter(t => t.status === 'todo').length,
-    'in-progress': tasks.filter(t => t.status === 'in-progress').length,
-    blocked: tasks.filter(t => t.status === 'blocked').length,
-    done: tasks.filter(t => t.status === 'done').length
-  };
+  const totalTasks = tasks.length;
+  const activeTasks = tasks.filter(t => t.status !== 'done').length;
 
   return (
     <div className="app">
       <header>
         <div className="header-left">
           <h1>🦉 Ollie's Tasks</h1>
+          <span className="task-stats">{activeTasks} active · {totalTasks} total</span>
         </div>
         <div className="header-right">
-          <span>{user?.name}</span>
+          <button onClick={() => setShowForm(!showForm)} className="btn-primary">
+            {showForm ? 'Cancel' : '+ New Task'}
+          </button>
+          <span className="user-info">
+            {user?.picture && <img src={user.picture} alt={user.name} className="user-avatar" />}
+            {user?.name}
+          </span>
           <button onClick={handleLogout} className="btn-secondary">Logout</button>
         </div>
       </header>
-
-      <div className="filters">
-        {['all', 'todo', 'in-progress', 'blocked', 'done'].map(status => (
-          <button
-            key={status}
-            className={filter === status ? 'active' : ''}
-            onClick={() => setFilter(status)}
-          >
-            {status.replace('-', ' ')} ({statusCounts[status]})
-          </button>
-        ))}
-      </div>
-
-      <div className="actions">
-        <button onClick={() => setShowForm(!showForm)} className="btn-primary">
-          {showForm ? 'Cancel' : '+ New Task'}
-        </button>
-      </div>
 
       {showForm && (
         <form onSubmit={createTask} className="task-form">
@@ -203,50 +186,11 @@ function App() {
         </form>
       )}
 
-      <div className="tasks-list">
-        {tasks.length === 0 ? (
-          <p className="empty-state">No tasks found. Create one to get started!</p>
-        ) : (
-          tasks.map(task => (
-            <div key={task.id} className={`task-card priority-${task.priority}`}>
-              <div className="task-header">
-                <h3>{task.title}</h3>
-                <div className="task-actions">
-                  <select
-                    value={task.status}
-                    onChange={e => updateTaskStatus(task.id, e.target.value)}
-                    className="status-select"
-                  >
-                    <option value="todo">To Do</option>
-                    <option value="in-progress">In Progress</option>
-                    <option value="blocked">Blocked</option>
-                    <option value="done">Done</option>
-                  </select>
-                  <button onClick={() => deleteTask(task.id)} className="btn-delete">×</button>
-                </div>
-              </div>
-              
-              {task.description && <p className="task-description">{task.description}</p>}
-              
-              <div className="task-meta">
-                <span className={`priority-badge priority-${task.priority}`}>
-                  {task.priority === 'urgent' ? '🚨' : ''} {task.priority}
-                </span>
-                {task.category && <span className="category-badge">{task.category}</span>}
-                {task.tags && task.tags.length > 0 && (
-                  <div className="tags">
-                    {task.tags.map(tag => <span key={tag} className="tag">{tag}</span>)}
-                  </div>
-                )}
-              </div>
-              
-              <div className="task-footer">
-                <small>Created {new Date(task.created_at).toLocaleDateString()}</small>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
+      <KanbanBoard 
+        tasks={tasks}
+        onTaskMove={handleTaskMove}
+        onTaskDelete={deleteTask}
+      />
     </div>
   );
 }

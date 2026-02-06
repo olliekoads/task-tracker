@@ -6,3 +6,10 @@ dist/
 build/
 .vercel
 OAUTH_CREDENTIALS.txt
+API_KEY.txt
+*.credentials
+*.secrets
+**/DEPLOYMENT-*.md
+**/DEPLOY-*.md
+**/OAUTH-*.md
+*.sh
