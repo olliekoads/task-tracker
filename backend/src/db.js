@@ -45,6 +45,20 @@ export async function initializeDatabase() {
       END $$;
     `);
     
+    // Add agent column if it doesn't exist
+    await client.query(`
+      DO $$ 
+      BEGIN 
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'tasks' AND column_name = 'agent'
+        ) THEN
+          ALTER TABLE tasks ADD COLUMN agent TEXT NOT NULL DEFAULT 'main';
+          CREATE INDEX idx_tasks_agent ON tasks(agent);
+        END IF;
+      END $$;
+    `);
+    
     console.log('✅ Database initialized');
   } finally {
     client.release();

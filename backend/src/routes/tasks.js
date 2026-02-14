@@ -7,10 +7,26 @@ const router = express.Router();
 // All routes require authentication
 router.use(requireAuth);
 
+// GET /api/tasks/agents - List distinct agents
+router.get('/agents', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT DISTINCT agent 
+      FROM tasks 
+      WHERE archived = false 
+      ORDER BY agent
+    `);
+    res.json(result.rows.map(row => row.agent));
+  } catch (error) {
+    console.error('Error fetching agents:', error);
+    res.status(500).json({ error: 'Failed to fetch agents' });
+  }
+});
+
 // GET /api/tasks - List tasks with optional filters
 router.get('/', async (req, res) => {
   try {
-    const { status, priority, category, archived, limit = 100 } = req.query;
+    const { status, priority, category, archived, agent, limit = 100 } = req.query;
     
     // Auto-archive tasks that have been in "done" state for 7+ days
     await pool.query(`
@@ -43,6 +59,10 @@ router.get('/', async (req, res) => {
     if (category) {
       query += ` AND category = $${paramCount++}`;
       params.push(category);
+    }
+    if (agent) {
+      query += ` AND agent = $${paramCount++}`;
+      params.push(agent);
     }
     
     query += ` ORDER BY 
@@ -81,17 +101,17 @@ router.get('/:id', async (req, res) => {
 // POST /api/tasks - Create task
 router.post('/', async (req, res) => {
   try {
-    const { title, description, status = 'todo', priority = 'medium', category, tags = [] } = req.body;
+    const { title, description, status = 'todo', priority = 'medium', category, tags = [], agent = 'main' } = req.body;
     
     if (!title) {
       return res.status(400).json({ error: 'Title is required' });
     }
     
     const result = await pool.query(
-      `INSERT INTO tasks (title, description, status, priority, category, tags, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO tasks (title, description, status, priority, category, tags, created_by, agent)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [title, description, status, priority, category, tags, req.user.email]
+      [title, description, status, priority, category, tags, req.user.email, agent]
     );
     
     res.status(201).json(result.rows[0]);
@@ -104,7 +124,7 @@ router.post('/', async (req, res) => {
 // PATCH /api/tasks/:id - Update task
 router.patch('/:id', async (req, res) => {
   try {
-    const { title, description, status, priority, category, tags, note, archived } = req.body;
+    const { title, description, status, priority, category, tags, note, archived, agent } = req.body;
     const updates = [];
     const params = [];
     let paramCount = 1;
@@ -132,6 +152,10 @@ router.patch('/:id', async (req, res) => {
     if (tags !== undefined) {
       updates.push(`tags = $${paramCount++}`);
       params.push(tags);
+    }
+    if (agent !== undefined) {
+      updates.push(`agent = $${paramCount++}`);
+      params.push(agent);
     }
     if (archived !== undefined) {
       updates.push(`archived = $${paramCount++}`);

@@ -17,6 +17,8 @@ function App() {
   const [selectedTask, setSelectedTask] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [agents, setAgents] = useState([]);
+  const [selectedAgent, setSelectedAgent] = useState('all');
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -27,9 +29,21 @@ function App() {
 
   useEffect(() => {
     if (token) {
+      fetchAgents();
       fetchTasks();
     }
-  }, [token, showArchived]);
+  }, [token, showArchived, selectedAgent]);
+  
+  const fetchAgents = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/tasks/agents`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setAgents(response.data);
+    } catch (error) {
+      console.error('Failed to fetch agents:', error);
+    }
+  };
 
   // Auto-refresh tasks every 60 seconds (only when tab is visible)
   useEffect(() => {
@@ -81,15 +95,23 @@ function App() {
         setIsRefreshing(true);
       }
       
+      // Build query params
+      const params = new URLSearchParams();
+      if (selectedAgent !== 'all') {
+        params.append('agent', selectedAgent);
+      }
+      
       // Fetch active tasks
-      const response = await axios.get(`${API_URL}/api/tasks`, {
+      const response = await axios.get(`${API_URL}/api/tasks?${params}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setTasks(response.data);
       
       // Fetch archived tasks if showing archived
       if (showArchived) {
-        const archivedResponse = await axios.get(`${API_URL}/api/tasks?archived=true`, {
+        const archivedParams = new URLSearchParams(params);
+        archivedParams.append('archived', 'true');
+        const archivedResponse = await axios.get(`${API_URL}/api/tasks?${archivedParams}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setArchivedTasks(archivedResponse.data);
@@ -137,7 +159,8 @@ function App() {
     try {
       await axios.post(`${API_URL}/api/tasks`, {
         ...formData,
-        tags: formData.tags ? formData.tags.split(',').map(t => t.trim()) : []
+        tags: formData.tags ? formData.tags.split(',').map(t => t.trim()) : [],
+        agent: selectedAgent === 'all' ? 'main' : selectedAgent
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -223,6 +246,19 @@ function App() {
           </span>
         </div>
         <div className="header-right">
+          <select 
+            value={selectedAgent} 
+            onChange={(e) => setSelectedAgent(e.target.value)}
+            className="agent-filter"
+            title="Filter tasks by agent"
+          >
+            <option value="all">All Agents</option>
+            {agents.map(agent => (
+              <option key={agent} value={agent}>
+                {agent === 'main' ? '🦉 Ollie (main)' : `🤖 ${agent}`}
+              </option>
+            ))}
+          </select>
           <button onClick={() => setShowForm(!showForm)} className="btn-primary">
             {showForm ? 'Cancel' : '+ New Task'}
           </button>
